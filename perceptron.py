@@ -2,6 +2,21 @@ import numpy as np
 import math
 import copy
 
+"""
+Notes:
+20111110 -- Tried with different weights:
+  * Single positive and negative weight shuffled: the perceptron finds the
+    max easily. Not a good strategy for the Dater.
+  * All weight distributed evenly: tends to perform better than random
+    weights. This is not a good strategy for the Dater.
+  * Tried weights using Beta distribution and params
+      (.5, .5), (2., 5.), (2., 2.)
+    but nothing seems to perform better than Gauss. It seems the same, which
+    I suspect has to do with the very small precision offered by 100 dims and
+    2 decimal places of precision.
+  * Tried weights for Gamma with k = 2, theta = 2. Same results.
+"""
+
 def generate_weights(weight_gen, partition=None, dims=100, precision=2):
     """
     Generate random weights in [-1, 1]. The positive weights are grouped at
@@ -133,15 +148,6 @@ class Matchmaker(object):
                 error = rate - pred
                 w_new = self._alpha * error * date
                 self._w_estimate = self._w_estimate + w_new
-        # Enforce weight constraints.
-        pos_only = self.w_estimate * (self.w_estimate > 0.)
-#        print "pos_only", pos_only
-        pos_sum = float(np.sum(pos_only))
-        neg_only = self.w_estimate * (self.w_estimate < 0.)
-        neg_sum = np.abs(float(np.sum(neg_only)))
-#        print "neg_only", neg_only
-        self._w_estimate = (pos_only / pos_sum) + (neg_only / neg_sum)
-#        print "self.w_estimate", self.w_estimate
 
     def get_examples(self):
         return self._examples
