@@ -3,12 +3,16 @@ import math
 import copy
 
 def generate_weights(weight_gen, partition=None, dims=100, precision=2):
-    """ Generate random weights in [-1, 1]. """
+    """
+    Generate random weights in [-1, 1]. The positive weights are grouped at
+    the head of the vector followed by the negative weights.
+    """
 
     max_precision = math.pow(10, precision)
 
     def gen_weights_with_precision(num_weights):
         """ Generate weights with the requested precision. """
+
         weights = np.array([np.abs(weight_gen()) for i in range(num_weights)])
         weight_norm = weights / np.sum(weights)
         weight_norm_trunc = np.asarray(weight_norm * max_precision, dtype=int)
@@ -16,7 +20,7 @@ def generate_weights(weight_gen, partition=None, dims=100, precision=2):
         weight_norm_trunc[-1] = max_precision - sum_except_last
         return weight_norm_trunc
 
-    # Positive weights.
+    # Partition the weights.
     if partition is None:
         num_pos = min(1 + int(np.random.uniform() * dims), dims - 1)
         num_neg = (dims - num_pos)
@@ -24,10 +28,10 @@ def generate_weights(weight_gen, partition=None, dims=100, precision=2):
     else:
         assert(len(partition) is 2)
         dims = sum(partition)
+    # Generate weights.
     pos_weights = gen_weights_with_precision(partition[0])
-    # Negative weights.
     neg_weights = -1 * gen_weights_with_precision(partition[1])
-    # Combine weights and shuffle.
+    # Combine weights.
     weights = np.hstack([pos_weights, neg_weights])
     return weights / max_precision
  
@@ -36,10 +40,13 @@ class Dater(object):
 
     # Dimension of preference vector.
     DIMS = 100
+    # Number of candidates that the dater will rate a priori.
     INITIAL_CANDIDATES = 20
 
     @classmethod
     def random_binary_candidate(cls):
+        """ Generate a random binary candidate vector. """
+
         ones = int(max(np.random.uniform() * cls.DIMS, 1))
         zeros = cls.DIMS - ones;
         d = np.asarray(np.hstack([np.ones(ones), np.zeros(zeros)]), dtype=int)
@@ -55,11 +62,12 @@ class Dater(object):
         for candidate_idx in range(Dater.INITIAL_CANDIDATES):
             # Don't make an ideal candidate or a dup.
             while True:
-              d, ones, zeros = self.random_binary_candidate()
-              np.random.shuffle(d)
-              r = self.rate_a_date(d)
-              if self._initial_survey.count(d) is 0 and r != 1:
-                  break
+                d, ones, zeros = self.random_binary_candidate()
+                np.random.shuffle(d)
+                r = self.rate_a_date(d)
+                candidates = [e[0] for e in self._initial_survey]
+                if all((d != c).any() for c in candidates) and r != 1:
+                    break
             self._initial_survey.append((d, r))
 
     def rate_a_date(self, d):
@@ -90,6 +98,7 @@ class Matchmaker(object):
         of examples so that the matchmaker can begin its search.
 
         """
+
         #self._w_estimate = generate_weights(np.random.uniform, dims=Dater.DIMS)
         #np.random.shuffle(self._w_estimate)
         self._w_estimate = np.zeros(Dater.DIMS)
@@ -144,6 +153,7 @@ class Matchmaker(object):
 
 def iterate_matches(matchmaker, dater, iterations):
     """ Show the dater some dates. """
+
     for date in range(iterations):
         print "date number", date
         d = matchmaker.find_date()
