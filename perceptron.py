@@ -122,18 +122,43 @@ class Matchmaker(object):
         for mul in np.arange(-1.0, 1.1, 0.25):
             self.rate_example(np.ones(Dater.DIMS) * mul, 0.)
 
-    def find_date(self):
+    def find_date(self, method=None, **kwargs):
         """ Create a date. """
 
-        max_date = np.asarray(self._w_estimate >= 0.005, dtype=int)
-        # Check same as any previous
+        uniform_noise = np.random.uniform
+        gauss_noise = np.random.normal
+        # Current max date guess using positive weights.
+        w_est_date = np.asarray(self._w_estimate >= 0.005, dtype=int)
+        # Select date using method.
+        if method is None:
+            mk_date = lambda: w_est_date
+        elif method is "PERTURB_BEST":
+            scores = [e[1] for e in self.examples]
+            max_score = (scores[0], 0)
+            for score, idx in zip(scores[1:], range(len(scores[1:]))):
+                if score > max_score[0]:
+                    max_score = (score, idx)
+            mk_date = lambda: (self.examples[max_score[1]][0] + \
+                np.asarray((np.abs(gauss_noise(size=Dater.DIMS)) >
+                 kwargs['gauss_thresh']), dtype=int)) % 2
+        elif method is "RANDOM":
+            mk_date = lambda: np.asarray(
+                np.abs(uniform_noise(size=Dater.DIMS)) > 0.5, dtype=int)
+        # Guarantee uniqueness.
         dates = [e[0] for e in self.examples]
-        if any((max_date == d).all() for d in dates):
-            print "date was same so mutating"
-            noise = np.random.normal(size=Dater.DIMS)
-            mutate = np.asarray(np.abs(noise) > 1.0, dtype=int)
-            max_date = (max_date + mutate) % 2
-        return max_date
+        date_not_unique = lambda date: any((date == d).all() for d in dates)
+        while True:
+            # Get a date.
+            date = mk_date()
+            # Check same as any previous
+            if date_not_unique(date):
+                noise = np.random.normal(size=Dater.DIMS)
+                mutate = np.asarray(np.abs(noise) > 2., dtype=int)
+                date = (date + mutate) % 2
+                if not date_not_unique(date):
+                    return date
+            else:
+                return date
 
     def rate_example(self, d, r, iterations=100):
         """ Rate example d with the actual Dater preference r. """
@@ -160,11 +185,11 @@ class Matchmaker(object):
 def iterate_matches(matchmaker, dater, iterations):
     """ Show the dater some dates. """
 
+    scores = []
     for date in range(iterations):
-        print "date number", date
         d = matchmaker.find_date()
         r = dater.rate_a_date(d)
         matchmaker.rate_example(d, r)
-    scores = [e[1] for e in matchmaker.examples]
+        scores.append(dater.rate_a_date(matchmaker.find_date()))
     return scores
 
