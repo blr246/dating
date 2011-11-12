@@ -53,29 +53,25 @@ def generate_weights(weight_gen, partition=None, dims=100, precision=2):
 class Dater(object):
     """ The dater will rate the candidate dates. """
 
-    # Dimension of preference vector.
-    DIMS = 100
     # Number of candidates that the dater will rate a priori.
     INITIAL_CANDIDATES = 20
 
-    @classmethod
-    def random_binary_candidate(cls):
+    @staticmethod
+    def random_binary_candidate(dims):
         """ Generate a random binary candidate vector. """
 
-        ones = int(max(np.random.uniform() * cls.DIMS, 1))
-        zeros = cls.DIMS - ones;
+        ones = int(max(np.random.uniform() * dims, 1))
+        zeros = dims - ones;
         d = np.asarray(np.hstack([np.ones(ones), np.zeros(zeros)]), dtype=int)
         return d, ones, zeros
 
-    def __init__(self, w=None):
+    def __init__(self, w=None, dims=100):
         gauss_weights = lambda: np.random.normal(loc=.1, scale=.2)
         # Adversarial partition determined by experiment.
-        num_pos = int(np.random.normal(loc=Dater.DIMS * 3/8.,
-                                       scale=.05*Dater.DIMS))
-        num_pos = min(num_pos, Dater.DIMS - 1)
-        split = (num_pos, Dater.DIMS - num_pos)
-        self._w = generate_weights(gauss_weights, dims=Dater.DIMS,
-                                   partition=split) \
+        num_pos = int(np.random.normal(loc=dims * 3/8., scale=.05*dims))
+        num_pos = min(num_pos, dims - 1)
+        split = (num_pos, dims - num_pos)
+        self._w = generate_weights(gauss_weights, dims=dims, partition=split) \
                   if w is None else w
         np.random.shuffle(self._w)
         # Generate initial candidates.
@@ -83,7 +79,7 @@ class Dater(object):
         for candidate_idx in range(Dater.INITIAL_CANDIDATES):
             # Don't make an ideal candidate or a dup.
             while True:
-                d, ones, zeros = self.random_binary_candidate()
+                d, ones, zeros = self.random_binary_candidate(dims)
                 np.random.shuffle(d)
                 r = self.rate_a_date(d)
                 candidates = [e[0] for e in self._initial_survey]
@@ -92,9 +88,10 @@ class Dater(object):
             self._initial_survey.append((d, r))
 
     def rate_a_date(self, d):
-        """ Date is a DIMS length vector. """
+        """ Date is a len(w) length vector. """
 
-        return int((np.dot(self.w, d) * Dater.DIMS) + 0.5) / float(Dater.DIMS)
+        dims = len(self.w)
+        return int((np.dot(self.w, d) * dims) + 0.5) / float(dims)
 
     def get_w(self):
         return self._w
@@ -108,9 +105,9 @@ class Dater(object):
 class Matchmaker(object):
     """ The matchmaker tries to infer the preferences of the dater. """
 
-    def __init__(self):
+    def __init__(self, dims=100):
         self._examples = []
-        self._w_estimate = np.zeros(Dater.DIMS)
+        self._w_estimate = np.zeros(dims)
         self._alpha = 0.005
 
     def new_client(self, examples):
@@ -120,17 +117,17 @@ class Matchmaker(object):
 
         """
 
-        #self._w_estimate = generate_weights(np.random.uniform, dims=Dater.DIMS)
-        #np.random.shuffle(self._w_estimate)
-        self._w_estimate = np.zeros(Dater.DIMS)
+        dims = len(examples[0][0])
+        self._w_estimate = np.zeros(dims)
         self._examples = copy.copy(examples)
         # Contraint that weights sum to zero.
         for mul in np.arange(-1.0, 1.1, 0.25):
-            self.rate_example(np.ones(Dater.DIMS) * mul, 0.)
+            self.rate_example(np.ones(dims) * mul, 0.)
 
     def find_date(self, method=None, **kwargs):
         """ Create a date. """
 
+        dims = len(self.w_estimate)
         uniform_noise = np.random.uniform
         gauss_noise = np.random.normal
         # Current max date guess using positive weights.
@@ -145,11 +142,11 @@ class Matchmaker(object):
                 if score > max_score[0]:
                     max_score = (score, idx)
             mk_date = lambda: (self.examples[max_score[1]][0] + \
-                np.asarray((np.abs(gauss_noise(size=Dater.DIMS)) >
+                np.asarray((np.abs(gauss_noise(size=dims)) >
                  kwargs['gauss_thresh']), dtype=int)) % 2
         elif method is "RANDOM":
             mk_date = lambda: np.asarray(
-                np.abs(uniform_noise(size=Dater.DIMS)) > 0.5, dtype=int)
+                np.abs(uniform_noise(size=dims)) > 0.5, dtype=int)
         # Guarantee uniqueness.
         dates = [e[0] for e in self.examples]
         date_not_unique = lambda date: any((date == d).all() for d in dates)
@@ -158,7 +155,7 @@ class Matchmaker(object):
             date = mk_date()
             # Check same as any previous
             if date_not_unique(date):
-                noise = np.random.normal(size=Dater.DIMS)
+                noise = np.random.normal(size=dims)
                 mutate = np.asarray(np.abs(noise) > 2., dtype=int)
                 date = (date + mutate) % 2
                 if not date_not_unique(date):
@@ -188,8 +185,42 @@ class Matchmaker(object):
     w_estimate = property(get_w_estimate, doc="Currently estimated weights.")
 
 
+class Serialization:
+    """ Serialize/deserialize dating objects. """
+
+    @staticmethod
+    def dater_to_lines(dater):
+        """
+        Convert the dater's weights to a list of lines as per game architecture.
+        """
+
+        s = ["weights\n"]
+        for w in dater.w:
+            s.append(str(w) + "\n")
+        return s
+
+    @staticmethod
+    def date_to_string(date):
+        """ Convert date vector [d1,...,dn] to string. """
+
+        s = "[" + str(date[0])
+        for v_i in date[1:]:
+            s += ", " + str(v_i)
+        s += "]"
+        return s
+
+    @staticmethod
+    def scored_date_from_string(scored_date):
+        """ Convert string of [d1,...,dn]:[s] to tuple (d, s). """
+
+        parts = scored_date.split(":")
+        d = np.array(eval(parts[0]))
+        s = eval(parts[1].strip("[]"))
+        return d, s
+
+
 def iterate_matches(matchmaker, dater, iterations):
-    """ Show the dater some dates. """
+    """ Show the dater some dates and track scores. """
 
     scores = []
     for date in range(iterations):

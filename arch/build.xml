@@ -1,0 +1,34 @@
+<project name="Dating" default="compile" basedir=".">
+  <description>
+  Dating game for Heuristic Problem Solving NYU GSAS Fall 2011.
+  </description>
+  <!-- set global properties for this build -->
+  <property name="src_server" location="DatingServer/src/server"/>
+  <property name="src_client" location="DatingClient/src/datingclient"/>
+  <property name="src_validator" location="PersonValidator/src/validator"/>
+  <property name="build" location="build"/>
+  <presetdef name="javac">
+    <javac includeantruntime="false"/>
+  </presetdef>
+
+  <target name="init">
+    <!-- Create the time stamp -->
+    <tstamp/>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${build}"/>
+  </target>
+
+  <target name="compile" depends="init"
+    description="compile the source " >
+    <!-- Compile the java code from ${src} into ${build} -->
+    <javac srcdir="${src_server}" destdir="${build}"/>
+    <javac srcdir="${src_client}" destdir="${build}"/>
+    <javac srcdir="${src_validator}" destdir="${build}"/>
+  </target>
+
+  <target name="clean" description="clean up" >
+    <!-- Delete the ${build} directory tree -->
+    <delete dir="${build}"/>
+  </target>
+</project>
+
