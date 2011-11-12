@@ -68,8 +68,14 @@ class Dater(object):
         return d, ones, zeros
 
     def __init__(self, w=None):
-        gauss_weights = lambda: np.random.normal(loc=.1, scale=.1)
-        self._w = generate_weights(gauss_weights, dims=Dater.DIMS) \
+        gauss_weights = lambda: np.random.normal(loc=.1, scale=.2)
+        # Adversarial partition determined by experiment.
+        num_pos = int(np.random.normal(loc=Dater.DIMS * 3/8.,
+                                       scale=.05*Dater.DIMS))
+        num_pos = min(num_pos, Dater.DIMS - 1)
+        split = (num_pos, Dater.DIMS - num_pos)
+        self._w = generate_weights(gauss_weights, dims=Dater.DIMS,
+                                   partition=split) \
                   if w is None else w
         np.random.shuffle(self._w)
         # Generate initial candidates.
@@ -105,7 +111,7 @@ class Matchmaker(object):
     def __init__(self):
         self._examples = []
         self._w_estimate = np.zeros(Dater.DIMS)
-        self._alpha = 0.01
+        self._alpha = 0.005
 
     def new_client(self, examples):
         """
@@ -128,7 +134,7 @@ class Matchmaker(object):
         uniform_noise = np.random.uniform
         gauss_noise = np.random.normal
         # Current max date guess using positive weights.
-        w_est_date = np.asarray(self._w_estimate >= 0.005, dtype=int)
+        w_est_date = np.asarray(self._w_estimate > 0.0, dtype=int)
         # Select date using method.
         if method is None:
             mk_date = lambda: w_est_date
@@ -160,7 +166,7 @@ class Matchmaker(object):
             else:
                 return date
 
-    def rate_example(self, d, r, iterations=100):
+    def rate_example(self, d, r, iterations=200):
         """ Rate example d with the actual Dater preference r. """
 
         self._examples.append((d, r))
