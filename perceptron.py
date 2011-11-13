@@ -108,13 +108,12 @@ class Matchmaker(object):
     def __init__(self, dims=100):
         self._examples = []
         self._w_estimate = np.zeros(dims)
-        self._alpha = 0.005
+        self._alpha = 0.01
 
     def new_client(self, examples):
         """
         The Matchmaker works with one client at a time. Pass an initial list
         of examples so that the matchmaker can begin its search.
-
         """
 
         dims = len(examples[0][0])
@@ -125,7 +124,19 @@ class Matchmaker(object):
             self.rate_example(np.ones(dims) * mul, 0.)
 
     def find_date(self, method=None, **kwargs):
-        """ Create a date. """
+        """
+        Create a date.
+          method=None -- Default method uses current guess for best candidate
+                         by taking all positive weights.
+          method='PERTURB_BEST' -- Takes the candidate composed of positive
+                                   weights and adds randon noise. Requires
+                                   additional parameter 'gauss_thresh' to
+                                   control the amount of noise such that
+                                     abs(N(mean=1, sigma=1)) > gauss_thresh
+                                   is the decision to perturb each attribute.
+                                   Lower thresholds give more perturbation.
+          method='RANDOM' -- Uniform random candidate.
+        """
 
         dims = len(self.w_estimate)
         uniform_noise = np.random.uniform
@@ -163,15 +174,19 @@ class Matchmaker(object):
             else:
                 return date
 
-    def rate_example(self, d, r, iterations=200):
+    def rate_example(self, d, r, iterations=400):
         """ Rate example d with the actual Dater preference r. """
 
         self._examples.append((d, r))
-        permutation = range(len(self.examples))
+        num_example = len(self.examples)
+#        permutation = range(num_example)
         for iteration in range(iterations):
-            np.random.shuffle(permutation)
             # Iterate all examples.
-            for date, rate in self.examples:
+#            np.random.shuffle(permutation)
+#            for idx in permutation:
+            bag = np.random.randint(0, num_example, size=num_example)
+            for idx in bag:
+                date, rate = self.examples[idx]
                 pred = np.dot(self.w_estimate, date)
                 error = rate - pred
                 w_new = self._alpha * error * date
