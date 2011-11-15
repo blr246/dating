@@ -30,8 +30,8 @@ def __main__(argv):
     # Create matchmaker and introduce to the dater.
     print "Introducing dater to matchmaker with {0} initial candidates."\
           .format(len(examples))
-    M = perceptron.Matchmaker()
-#    M = ridge_regression.Matchmaker()
+#    M = perceptron.Matchmaker()
+    M = ridge_regression.Matchmaker()
     M.new_client(examples)
 
     # Create dates until limit reached or perfect match found.
