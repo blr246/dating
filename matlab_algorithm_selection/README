@@ -1,0 +1,8 @@
+Run the train_dating function
+* example: train_dating(100,30,10,20,.001)
+* here 100 = number of Iterations
+	30 = dimension of a tarining example ( number of features).
+	10 =  number of negative weights
+	20 = number of training example
+	.001 = Regularization parameter.
+	it returns a matrix contaning dot products  ( for 20 more examples) for each iteration.
