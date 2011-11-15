@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 class Matchmaker(object):
-    def __init__(self, gamma=0.1):
+    def __init__(self, gamma=0.001):
         self._gamma = gamma
 
     def new_client(self, examples):
