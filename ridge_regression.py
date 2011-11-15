@@ -2,8 +2,8 @@ import perceptron
 import numpy as np
 import copy
 
-class RidgeMatchmaker(object):
-    def __init__(self, gamma=2.):
+class Matchmaker(object):
+    def __init__(self, gamma=0.1):
         self._gamma = gamma
 
     def new_client(self, examples):
