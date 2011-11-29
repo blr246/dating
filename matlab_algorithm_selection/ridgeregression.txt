@@ -1,0 +1,44 @@
+Linear Regression:
+   We are given m training examples.
+   Each input variable x is a vector with n features. Let's denote m input variables by X. X is a matrix of order m X n (where m is the number of training examples and n is the number of features corresponding to each input variable).
+We are also given the output/target variable y _belongsTo R, which is a real value.
+   Hypothesis set: linear functions of type ThetaX
+   Optimization Objective:
+     minimize J = 1/m _sum((_from i=1 through m) X * Theta - y)^2)
+
+We want to learn the vector Theta that minimizes J for given X and y.
+The above equation can be written as follows in the matrix form:
+    J(Theta) = 1/m norm_2(X' * Theta - y)^2
+
+This function is convex and differentiable,
+     J'(Theta) = 2/m (X' * Theta -y)
+     J'(Theta) = 0 for minima
+     2/m X(X' * Theta -y) = 0 => X * X' * Theta = X * y
+     Theta = _inverse(XX') * X * y
+
+The above equation is sensitive to the predictors being in a state of near-collinearity. That makes the matrix XX' to be singular and it is not invertible anymore.      
+     
+
+Ridge Regression is a variant of ordinary Multiple Linear Regression.
+
+ It circumvents the problem of predictors collinearity.
+Optimization Objective:
+  minimize J(Theta) = lambda * norm_2(Theta)^2 + norm_2(X' * Theta - y)^2,
+  where lambda >= 0 is a regularization parameter
+
+  subject to: norm_2(Theta)^2 <= delta^2
+
+  J'(Theta) = 2 * lambda * Theta + 2 *  X(X' * Theta - y) = 0
+  (lambda*I + XX') * Theta = Xy
+  Theta = _inverse(XX'+lambda*I) * Xy
+The above equation gives a closed form solution and the matrix XX' + lambda*I is always invertible.
+
+Matlab code:
+       regularizationMatrix = eye(size(X,2));
+       regularizationMatrix(1,1) = 0;
+       Theta = (X' * X + (lambda .* regularizationMatrix).^2) \ (X' * Y);
+
+The operator \ takes the inverse.
+
+      
+
